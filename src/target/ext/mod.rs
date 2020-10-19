@@ -250,3 +250,4 @@ pub mod breakpoints;
 pub mod extended_mode;
 pub mod monitor_cmd;
 pub mod section_offsets;
+pub mod reverse_execution;

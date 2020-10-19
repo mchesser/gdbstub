@@ -239,6 +239,11 @@ pub trait Target {
     fn section_offsets(&mut self) -> Option<ext::section_offsets::SectionOffsetsOps<Self>> {
         None
     }
+
+    /// Support for Reverse Execution operations.
+    fn reverse_execution(&mut self) -> Option<ext::reverse_execution::ReverseExecutionOps<Self>> {
+        None
+    }
 }
 
 macro_rules! impl_dyn_target {

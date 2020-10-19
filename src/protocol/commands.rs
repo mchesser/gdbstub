@@ -147,4 +147,9 @@ commands! {
     section_offsets {
         "qOffsets" => _qOffsets::qOffsets,
     }
+
+    reverse_execution {
+        "bc" => _bc::bc,
+        "bs" => _bs::bs,
+    }
 }

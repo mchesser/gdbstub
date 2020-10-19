@@ -252,6 +252,7 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
             Command::ExtendedMode(cmd) => self.handle_extended_mode(res, target, cmd),
             Command::MonitorCmd(cmd) => self.handle_monitor_cmd(res, target, cmd),
             Command::SectionOffsets(cmd) => self.handle_section_offsets(res, target, cmd),
+            Command::ReverseExecution(cmd) => self.handle_reverse_execution(res, target, cmd),
         }
     }
 
@@ -302,6 +303,10 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
 
                 // TODO: implement conditional breakpoint support (since that's kool).
                 // res.write_str("ConditionalBreakpoints+;")?;
+
+                if target.reverse_execution().is_some() {
+                    res.write_str(";ReverseStep+")?;
+                }
 
                 if T::Arch::target_description_xml().is_some() {
                     res.write_str(";qXfer:features:read+")?;
@@ -910,6 +915,39 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
         Ok(handler_status)
     }
 
+    fn handle_reverse_execution(
+        &mut self,
+        res: &mut ResponseWriter<C>,
+        target: &mut T,
+        command: ext::ReverseExecution,
+    ) -> Result<HandlerStatus, Error<T::Error, C::Error>> {
+        let ops = match target.reverse_execution() {
+            Some(ops) => ops,
+            None => return Ok(HandlerStatus::Handled),
+        };
+
+        let do_reverse_execute = || {
+            let stop_reason = match command {
+                ext::ReverseExecution::bc(_cmd) => {
+                    ops.reverse_continue().map_err(Error::TargetError)?.into()
+                }
+                ext::ReverseExecution::bs(_cmd) => {
+                    ops.reverse_step().map_err(Error::TargetError)?.into()
+                }
+            };
+
+            self.process_stop_reason(res, stop_reason)
+        };
+
+        let ret = match do_reverse_execute() {
+            Ok(None) => HandlerStatus::Handled,
+            Ok(Some(dc)) => HandlerStatus::Disconnect(dc),
+            Err(e) => return Err(e),
+        };
+
+        Ok(ret)
+    }
+
     fn do_vcont(
         &mut self,
         res: &mut ResponseWriter<C>,
@@ -945,6 +983,14 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
 
         err?;
 
+        self.process_stop_reason(res, stop_reason)
+    }
+
+    fn process_stop_reason(
+        &mut self,
+        res: &mut ResponseWriter<C>,
+        stop_reason: ThreadStopReason<<T::Arch as Arch>::Usize>,
+    ) -> Result<Option<DisconnectReason>, Error<T::Error, C::Error>> {
         match stop_reason {
             ThreadStopReason::DoneStep | ThreadStopReason::GdbInterrupt => {
                 res.write_str("S05")?;
