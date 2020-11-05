@@ -305,7 +305,7 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
                 // res.write_str("ConditionalBreakpoints+;")?;
 
                 if target.reverse_execution().is_some() {
-                    res.write_str(";ReverseStep+")?;
+                    res.write_str(";ReverseStep+;ReverseContinue+")?;
                 }
 
                 if T::Arch::target_description_xml().is_some() {
