@@ -11,7 +11,8 @@ pub trait Auxv: Target {
     ///
     /// If `offset` is greater than the length of the underlying data, return
     /// `Ok(0)`.
-    fn get_auxv(&self, offset: u64, length: usize, buf: &mut [u8]) -> TargetResult<usize, Self>;
+    fn get_auxv(&mut self, offset: u64, length: usize, buf: &mut [u8])
+        -> TargetResult<usize, Self>;
 }
 
 define_ext!(AuxvOps, Auxv);
