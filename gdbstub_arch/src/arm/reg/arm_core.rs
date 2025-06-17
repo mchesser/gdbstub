@@ -1,5 +1,7 @@
 use gdbstub::arch::Registers;
 
+pub type F96 = [u8; 12];
+
 /// 32-bit ARM core registers.
 ///
 /// Source: <https://github.com/bminor/binutils-gdb/blob/master/gdb/features/arm/arm-core.xml>
@@ -13,6 +15,10 @@ pub struct ArmCoreRegs {
     pub lr: u32,
     /// Program Counter (R15)
     pub pc: u32,
+    /// Floating point registers (F0-F7)
+    pub f: [F96; 8],
+    /// Floating Point Status Register (fps)
+    pub fps: u32,
     /// Current Program Status Register (cpsr)
     pub cpsr: u32,
 }
@@ -40,10 +46,10 @@ impl Registers for ArmCoreRegs {
         write_bytes!(&self.lr.to_le_bytes());
         write_bytes!(&self.pc.to_le_bytes());
 
-        // Floating point registers (unused)
-        for _ in 0..25 {
-            (0..4).for_each(|_| write_byte(None))
+        for reg in self.f.iter() {
+            write_bytes!(reg);
         }
+        write_bytes!(&self.fps.to_le_bytes());
 
         write_bytes!(&self.cpsr.to_le_bytes());
     }
@@ -72,16 +78,14 @@ impl Registers for ArmCoreRegs {
         self.lr = next_reg()?;
         self.pc = next_reg()?;
 
-        // Floating point registers (unused)
-        for _ in 0..25 {
-            next_reg()?;
+        for reg in self.f.iter_mut() {
+            reg[..4].copy_from_slice(&next_reg()?.to_le_bytes());
+            reg[4..8].copy_from_slice(&next_reg()?.to_le_bytes());
+            reg[8..12].copy_from_slice(&next_reg()?.to_le_bytes());
         }
 
+        self.fps = next_reg()?;
         self.cpsr = next_reg()?;
-
-        if next_reg().is_ok() {
-            return Err(());
-        }
 
         Ok(())
     }
