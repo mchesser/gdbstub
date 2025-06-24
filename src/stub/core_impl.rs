@@ -33,6 +33,9 @@ mod extended_mode;
 mod flash;
 mod host_io;
 mod libraries;
+mod lldb_gdb_server_version;
+mod lldb_host_info;
+mod lldb_process_info;
 mod lldb_register_info;
 mod memory_map;
 mod monitor_cmd;
@@ -222,6 +225,11 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
             Command::LldbRegisterInfo(cmd) => self.handle_lldb_register_info(res, target, cmd),
             Command::LibrariesSvr4(cmd) => self.handle_libraries_svr4(res, target, cmd),
             Command::Tracepoints(cmd) => self.handle_tracepoints(res, target, cmd),
+            Command::LldbHostInfo(cmd) => self.handle_lldb_host_info(res, target, cmd),
+            Command::LldbProcessInfo(cmd) => self.handle_lldb_process_info(res, target, cmd),
+            Command::LldbGdbServerVersion(cmd) => {
+                self.handle_lldb_gdb_server_version(res, target, cmd)
+            }
             // in the worst case, the command could not be parsed...
             Command::Unknown(cmd) => {
                 // HACK: if the user accidentally sends a resume command to a
