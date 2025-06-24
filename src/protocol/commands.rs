@@ -339,6 +339,20 @@ commands! {
         "qRegisterInfo" => _qRegisterInfo::qRegisterInfo,
     }
 
+    lldb_host_info {
+        "qHostInfo" => _qHostInfo::qHostInfo,
+    }
+
+    lldb_process_info {
+        "qProcessInfo" => _qProcessInfo::qProcessInfo,
+        "qfProcessInfo" => _qfProcessInfo::qfProcessInfo,
+        "qsProcessInfo" => _qsProcessInfo::qsProcessInfo,
+    }
+
+    lldb_gdb_server_version {
+        "qGDBServerVersion" => _qGDBServerVersion::qGDBServerVersion,
+    }
+
     libraries_svr4 use 'a {
         "qXfer:libraries-svr4:read" => _qXfer_libraries_svr4_read::qXferLibrariesSvr4Read<'a>,
     }

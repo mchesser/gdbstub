@@ -255,6 +255,11 @@ use crate::arch::Arch;
 
 pub mod ext;
 
+pub struct VersionInfo {
+    pub name: &'static str,
+    pub version: &'static str,
+}
+
 /// The error type for various methods on `Target` and its assorted associated
 /// extension traits.
 ///
@@ -641,6 +646,15 @@ pub trait Target {
         true
     }
 
+    /// (LLDB extension) value to return to the `QGdbServerVersion` packet.
+    #[inline(always)]
+    fn support_lldb_gdb_server_version(&self) -> Option<VersionInfo> {
+        Some(VersionInfo {
+            name: "gdbstub",
+            version: env!("CARGO_PKG_VERSION"),
+        })
+    }
+
     /// Support for setting / removing breakpoints.
     #[inline(always)]
     fn support_breakpoints(&mut self) -> Option<ext::breakpoints::BreakpointsOps<'_, Self>> {
@@ -744,6 +758,21 @@ pub trait Target {
     /// (e.g., Windows PE targets).
     #[inline(always)]
     fn support_libraries(&mut self) -> Option<ext::libraries::LibrariesOps<'_, Self>> {
+        None
+    }
+
+    /// (LLDB extension) Support for reading host getting information about the
+    /// host we are remotely connected to.
+    #[inline(always)]
+    fn support_lldb_host_info(&mut self) -> Option<ext::lldb_host_info::LldbHostInfoOps<'_, Self>> {
+        None
+    }
+
+    /// (LLDB extension) Support getting process information.
+    #[inline(always)]
+    fn support_lldb_process_info(
+        &mut self,
+    ) -> Option<ext::lldb_process_info::LldbProcessInfoOps<'_, Self>> {
         None
     }
 }

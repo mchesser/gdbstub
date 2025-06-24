@@ -15,9 +15,12 @@ impl Arch for X86_64_SSE {
     type BreakpointKind = usize;
 
     fn target_description_xml() -> Option<&'static str> {
-        Some(
-            r#"<target version="1.0"><architecture>i386:x86-64</architecture><feature name="org.gnu.gdb.i386.sse"></feature></target>"#,
-        )
+        Some(concat!(
+            r#"<target version="1.0"><architecture>i386:x86-64</architecture>"#,
+            include_str!("64bit-core.xml"),
+            include_str!("64bit-sse.xml"),
+            r#"</target>"#
+        ))
     }
 }
 

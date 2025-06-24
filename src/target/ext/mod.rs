@@ -267,6 +267,8 @@ pub mod extended_mode;
 pub mod flash;
 pub mod host_io;
 pub mod libraries;
+pub mod lldb_host_info;
+pub mod lldb_process_info;
 pub mod lldb_register_info_override;
 pub mod memory_map;
 pub mod monitor_cmd;
