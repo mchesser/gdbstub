@@ -1,6 +1,7 @@
 //! Base debugging operations for multi threaded targets.
 
 use crate::arch::Arch;
+use crate::common::Pid;
 use crate::common::Signal;
 use crate::common::Tid;
 use crate::target::Target;
@@ -86,7 +87,7 @@ pub trait MultiThreadBase: Target {
     /// `dyn FnMut` closure machinery).
     fn list_active_threads(
         &mut self,
-        thread_is_active: &mut dyn FnMut(Tid),
+        thread_is_active: &mut dyn FnMut(Option<Pid>, Tid),
     ) -> Result<(), Self::Error>;
 
     /// Check if the specified thread is alive.
@@ -98,7 +99,7 @@ pub trait MultiThreadBase: Target {
     #[allow(clippy::wrong_self_convention)] // requires breaking change to fix
     fn is_thread_alive(&mut self, tid: Tid) -> Result<bool, Self::Error> {
         let mut found = false;
-        self.list_active_threads(&mut |active_tid| {
+        self.list_active_threads(&mut |_, active_tid| {
             if tid == active_tid {
                 found = true;
             }

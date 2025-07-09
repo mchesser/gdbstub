@@ -23,7 +23,7 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
             BaseOps::SingleThread(_) => Some(SINGLE_THREAD_TID),
             BaseOps::MultiThread(ops) => {
                 let mut first_tid = None;
-                ops.list_active_threads(&mut |tid| {
+                ops.list_active_threads(&mut |_, tid| {
                     if first_tid.is_none() {
                         first_tid = Some(tid);
                     }
@@ -42,14 +42,69 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
         &mut self,
         target: &mut T,
     ) -> Result<Pid, Error<T::Error, C::Error>> {
-        if let Some(ops) = target
+        if let Some(current) = self.get_current(target)? {
+            return Ok(current.0);
+        }
+        Ok(FAKE_PID)
+    }
+
+    pub(crate) fn get_current(
+        &mut self,
+        target: &mut T,
+    ) -> Result<Option<(Pid, Tid)>, Error<T::Error, C::Error>> {
+        let Some(ops) = target
             .support_extended_mode()
             .and_then(|ops| ops.support_current_active_pid())
-        {
-            ops.current_active_pid().map_err(Error::TargetError)
-        } else {
-            Ok(FAKE_PID)
+        else {
+            return Ok(None);
+        };
+        Ok(Some(ops.current_active().map_err(Error::TargetError)?))
+    }
+
+    // During the initial connection phase, GDB creates an initial inferior, fetches
+    // the current target information (`target.xml`), and performs a `?` (this) to
+    // determine the initial stop reason.
+    //
+    // However, the stop reason is _not_ immediately handled by GDB and instead
+    // GDB fetches the list of active threads (`qfThreadInfo`). The first thread
+    // reported in this list is considered the 'main' thread and will be associated
+    // with the initial inferior.
+    //
+    // GDB then waits for the inferior to stop, at which point it process the
+    // initial stop reason. If thread indicated in the reported stop reason is _not_
+    // the main thread, then GDB will create a new inferior for that thread. As part
+    // of processing the stop message, GDB requests the current process state using
+    // commands like `g`, however this can fail if the architecture is not set
+    // correctly
+    //
+    // The correct architecture settings are normally fixed in
+    // `post_create_inferior`, but this happens too late for the initial attach.
+    //
+    // This can be partially mitigated by ensuring that the first thread returned by
+    // `list_active_threads` matches the current thread (so GDB will 'think' it is
+    // the main thread and will not create a new inferior for it). But other
+    // threads will still be broken.
+    fn report_reasonable_stop_reason_multiprocess(
+        &mut self,
+        res: &mut ResponseWriter<'_, C>,
+        target: &mut T,
+    ) -> Result<Option<HandlerStatus>, Error<T::Error, C::Error>> {
+        if !self.features.multiprocess() {
+            return Ok(None);
         }
+
+        let (tid, pid) = match self.get_current(target)? {
+            Some((pid, tid)) => (tid, pid),
+            // No active task, could return `W00` but just fallback to regular path for now.
+            None => return Ok(None),
+        };
+        res.write_str("T05thread:")?;
+        res.write_specific_thread_id(SpecificThreadId {
+            pid: Some(SpecificIdKind::WithId(pid)),
+            tid: SpecificIdKind::WithId(tid),
+        })?;
+        res.write_str(";")?;
+        Ok(Some(HandlerStatus::Handled))
     }
 
     // Used by `?` and `vAttach` to return a "reasonable" stop reason.
@@ -63,6 +118,10 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
         res: &mut ResponseWriter<'_, C>,
         target: &mut T,
     ) -> Result<HandlerStatus, Error<T::Error, C::Error>> {
+        if let Some(status) = self.report_reasonable_stop_reason_multiprocess(res, target)? {
+            return Ok(status);
+        }
+
         // Reply with a valid thread-id or GDB issues a warning when more
         // than one thread is active
         if let Some(tid) = self.get_sane_any_tid(target)? {
@@ -421,7 +480,7 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
                     BaseOps::MultiThread(ops) => {
                         let mut err: Result<_, Error<T::Error, C::Error>> = Ok(());
                         let mut first = true;
-                        ops.list_active_threads(&mut |tid| {
+                        ops.list_active_threads(&mut |pid, tid| {
                             // TODO: replace this with a try block (once stabilized)
                             let e = (|| {
                                 if !first {
@@ -429,10 +488,7 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
                                 }
                                 first = false;
                                 res.write_specific_thread_id(SpecificThreadId {
-                                    pid: self
-                                        .features
-                                        .multiprocess()
-                                        .then_some(SpecificIdKind::WithId(pid)),
+                                    pid: pid.map(SpecificIdKind::WithId),
                                     tid: SpecificIdKind::WithId(tid),
                                 })?;
                                 Ok(())

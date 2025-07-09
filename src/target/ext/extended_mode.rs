@@ -286,7 +286,7 @@ pub trait CurrentActivePid: ExtendedMode {
     /// _simultaneously_. If this is a feature you're interested in, please
     /// leave a comment on this [tracking
     /// issue](https://github.com/daniel5151/gdbstub/issues/124).
-    fn current_active_pid(&mut self) -> Result<Pid, Self::Error>;
+    fn current_active(&mut self) -> Result<(Pid, Tid), Self::Error>;
 }
 
 define_ext!(CurrentActivePidOps, CurrentActivePid);

@@ -2,8 +2,6 @@ use super::prelude::*;
 use crate::protocol::commands::ext::ExtendedMode;
 use crate::protocol::SpecificIdKind;
 use crate::protocol::SpecificThreadId;
-use crate::target::ext::base::BaseOps;
-use crate::SINGLE_THREAD_TID;
 
 impl<T: Target, C: Connection> GdbStubImpl<T, C> {
     pub(crate) fn handle_extended_mode(
@@ -40,36 +38,7 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
                 let ops = ops.support_current_active_pid().unwrap();
 
                 res.write_str("QC")?;
-                let pid = ops.current_active_pid().map_err(Error::TargetError)?;
-                let tid = match target.base_ops() {
-                    BaseOps::SingleThread(_) => SINGLE_THREAD_TID,
-                    BaseOps::MultiThread(ops) => {
-                        // HACK: gdbstub should avoid using a sentinel value here...
-                        if self.current_mem_tid == SINGLE_THREAD_TID {
-                            let mut err: Result<_, Error<T::Error, C::Error>> = Ok(());
-                            let mut first_tid = None;
-                            ops.list_active_threads(&mut |tid| {
-                                // TODO: replace this with a try block (once stabilized)
-                                let e = (|| {
-                                    if first_tid.is_some() {
-                                        return Ok(());
-                                    }
-                                    first_tid = Some(tid);
-                                    Ok(())
-                                })();
-
-                                if let Err(e) = e {
-                                    err = Err(e)
-                                }
-                            })
-                            .map_err(Error::TargetError)?;
-                            err?;
-                            first_tid.unwrap_or(SINGLE_THREAD_TID)
-                        } else {
-                            self.current_mem_tid
-                        }
-                    }
-                };
+                let (pid, tid) = ops.current_active().map_err(Error::TargetError)?;
 
                 res.write_specific_thread_id(SpecificThreadId {
                     pid: self
