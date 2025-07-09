@@ -428,10 +428,16 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
                 }
             }
             Base::D(cmd) => {
-                // TODO: plumb-through Pid when exposing full multiprocess + extended mode
-                let _pid = cmd.pid;
-                res.write_str("OK")?; // manually write OK, since we need to return a DisconnectReason
-                HandlerStatus::Disconnect(DisconnectReason::Disconnect)
+                match (cmd.pid, target.support_extended_mode()) {
+                    (Some(pid), Some(ops)) => {
+                        ops.detach(pid).handle_error()?;
+                        HandlerStatus::NeedsOk
+                    }
+                    _ => {
+                        res.write_str("OK")?; // manually write OK, since we need to return a DisconnectReason
+                        HandlerStatus::Disconnect(DisconnectReason::Disconnect)
+                    }
+                }
             }
 
             // ------------------- Multi-threading Support ------------------ //
