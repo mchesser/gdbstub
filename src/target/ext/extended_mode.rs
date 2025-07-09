@@ -94,6 +94,9 @@ pub trait ExtendedMode: Target {
     /// supported by the target).
     fn attach(&mut self, pid: Pid) -> TargetResult<(), Self>;
 
+    /// Detach from a process with the specified PID.
+    fn detach(&mut self, pid: Pid) -> TargetResult<(), Self>;
+
     /// Query if specified PID was spawned by the target (via `run`), or if the
     /// target attached to an existing process (via `attach`).
     ///
