@@ -41,7 +41,7 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
 
         match command {
             LldbProcessInfo::qProcessInfo(_) => {
-                if let Some(p) = ops.get_process("", 0) {
+                if let Some(p) = ops.get_current_process_info() {
                     write_process_info(res, &p)?
                 } else {
                     // Return any EXX error when there are no processes remaining (See:
@@ -52,14 +52,14 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
             LldbProcessInfo::qfProcessInfo(a) => {
                 // @todo: Implement `qfProcessInfo` command handling.
                 _ = a;
-
-                if let Some(p) = ops.get_process("", 0) {
+                let mut i = 0;
+                while let Some(p) = ops.get_process_info("", i) {
                     write_process_info(res, &p)?;
-                } else {
-                    // Return any EXX error when there are no processes remaining (See:
-                    // `lldb_register_info.rs`).
-                    res.write_str("E45")?;
+                    i += 1;
                 }
+                // Return any EXX error when there are no processes remaining (See:
+                // `lldb_register_info.rs`).
+                res.write_str("E45")?;
             }
             LldbProcessInfo::qsProcessInfo(_a) => {
                 // Return any EXX error when there are no processes remaining (See:

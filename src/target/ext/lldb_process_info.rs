@@ -18,7 +18,8 @@ pub struct ProcessInfo {
 }
 
 pub trait LldbProcessInfo: Target {
-    fn get_process(&mut self, req: &str, nth: usize) -> Option<ProcessInfo>;
+    fn get_current_process_info(&mut self) -> Option<ProcessInfo>;
+    fn get_process_info(&mut self, req: &str, nth: usize) -> Option<ProcessInfo>;
 }
 
 define_ext!(LldbProcessInfoOps, LldbProcessInfo);
