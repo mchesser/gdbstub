@@ -493,6 +493,10 @@ impl<T: Target, C: Connection> GdbStubImpl<T, C> {
                                     res.write_str(",")?
                                 }
                                 first = false;
+                                let pid = self
+                                    .features
+                                    .multiprocess()
+                                    .then(|| pid.unwrap_or(FAKE_PID));
                                 res.write_specific_thread_id(SpecificThreadId {
                                     pid: pid.map(SpecificIdKind::WithId),
                                     tid: SpecificIdKind::WithId(tid),
